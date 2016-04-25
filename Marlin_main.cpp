@@ -139,6 +139,7 @@
  * M105 - Read current temp
  * M106 - Fan on
  * M107 - Fan off
+ * M108 - Cancel heatup and wait for the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
  * M109 - Sxxx Wait for extruder current temp to reach target temp. Waits only when heating
  *        Rxxx Wait for extruder current temp to reach target temp. Waits when heating and cooling
  *        IF AUTOTEMP is enabled, S<mintemp> B<maxtemp> F<factor>. Exit autotemp by any M109 without F
@@ -271,7 +272,7 @@ float max_pos[3] = { X_MAX_POS, Y_MAX_POS, Z_MAX_POS };
 
 uint8_t active_extruder = 0;
 int fanSpeed = 0;
-bool cancel_heatup = false;
+bool cancel_wait_heatup = false;
 
 const char errormagic[] PROGMEM = "Error:";
 const char echomagic[] PROGMEM = "echo:";
@@ -897,6 +898,7 @@ void get_command() {
 
       // If command was e-stop process now
       if (strcmp(command, "M112") == 0) kill(PSTR(MSG_KILLED));
+      if (strcmp(command, "M108") == 0) cancel_wait_heatup = true;
 
       cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
       commands_in_queue += 1;
@@ -3914,6 +3916,13 @@ inline void gcode_M105() {
 #endif // HAS_FAN
 
 /**
+ * M108: Cancel heatup and wait for the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
+ */
+inline void gcode_M108() {
+  cancel_wait_heatup = true;
+}
+
+/**
  * M109: Sxxx Wait for extruder(s) to reach temperature. Waits only when heating.
  *       Rxxx Wait for extruder(s) to reach temperature. Waits when heating and cooling.
  */
@@ -3954,9 +3963,9 @@ inline void gcode_M109() {
     #define TEMP_CONDITIONS (degHotend(target_extruder) != degTargetHotend(target_extruder))
   #endif //TEMP_RESIDENCY_TIME
 
-  cancel_heatup = false;
+  cancel_wait_heatup = false;
   millis_t now = millis(), next_temp_ms = now + 1000UL;
-  while (!cancel_heatup && TEMP_CONDITIONS) {
+  while (!cancel_wait_heatup && TEMP_CONDITIONS) {
     now = millis();
     if (now > next_temp_ms) { //Print temp & remaining time every 1s while waiting
       next_temp_ms = now + 1000UL;
@@ -3986,7 +3995,7 @@ inline void gcode_M109() {
         residency_start_ms = millis();
     #endif //TEMP_RESIDENCY_TIME
 
-  } // while(!cancel_heatup && TEMP_CONDITIONS)
+  } // while(!cancel_wait_heatup && TEMP_CONDITIONS)
 
   LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
   refresh_cmd_timeout();
@@ -4010,9 +4019,9 @@ inline void gcode_M109() {
     // Exit if the temperature is above target and not waiting for cooling
     if (no_wait_for_cooling && !isHeatingBed()) return;
 
-    cancel_heatup = false;
+    cancel_wait_heatup = false;
     millis_t now = millis(), next_temp_ms = now + 1000UL;
-    while (!cancel_heatup && degTargetBed() != degBed()) {
+    while (!cancel_wait_heatup && degTargetBed() != degBed()) {
       millis_t now = millis();
       if (now > next_temp_ms) { //Print Temp Reading every 1 second while heating up.
         next_temp_ms = now + 1000UL;
@@ -5920,6 +5929,10 @@ void process_next_command() {
       case 105: // M105: Read current temperature
         gcode_M105();
         return; // "ok" already printed
+
+      case 108:
+        gcode_M108();
+        break;
 
       case 109: // M109: Wait for temperature
         gcode_M109();
