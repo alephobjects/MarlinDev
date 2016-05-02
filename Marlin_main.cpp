@@ -139,7 +139,7 @@
  * M105 - Read current temp
  * M106 - Fan on
  * M107 - Fan off
- * M108 - Cancel heatup and wait for the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
+ * M108 - Cancel wait for heatup and cooldown of the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
  * M109 - Sxxx Wait for extruder current temp to reach target temp. Waits only when heating
  *        Rxxx Wait for extruder current temp to reach target temp. Waits when heating and cooling
  *        IF AUTOTEMP is enabled, S<mintemp> B<maxtemp> F<factor>. Exit autotemp by any M109 without F
@@ -3916,7 +3916,7 @@ inline void gcode_M105() {
 #endif // HAS_FAN
 
 /**
- * M108: Cancel heatup and wait for the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
+ * M108: Cancel wait for heatup and cooldown of the hotend and bed, this G-code is asynchronously handled in the get_serial_commands() parser
  */
 inline void gcode_M108() {
   cancel_wait_heatup = true;
