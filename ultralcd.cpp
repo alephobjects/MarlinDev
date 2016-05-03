@@ -390,7 +390,7 @@ static void lcd_return_to_status() { lcd_goto_menu(lcd_status_screen); }
     card.sdprinting = false;
     card.closefile();
     autotempShutdown();
-    cancel_heatup = true;
+    cancel_wait_heatup = true;
     lcd_setstatus(MSG_PRINT_ABORTED, true);
   }
 
